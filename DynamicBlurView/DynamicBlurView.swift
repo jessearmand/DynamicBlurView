@@ -42,13 +42,13 @@ public class DynamicBlurView: UIView {
     private var staticImage: UIImage?
     private var fromBlurRadius: CGFloat?
     private var displayLink: CADisplayLink?
-    private let DisplayLinkSelector: Selector = "displayDidRefresh:"
+    private let DisplayLinkSelector: Selector = #selector(DynamicBlurView.displayDidRefresh(_:))
     private var blurLayer: BlurLayer {
         return layer as! BlurLayer
     }
     
     private var blurPresentationLayer: BlurLayer {
-        if let layer = blurLayer.presentationLayer() as? BlurLayer {
+        if let layer = blurLayer.presentationLayer() {
             return layer
         }
         
@@ -56,7 +56,7 @@ public class DynamicBlurView: UIView {
     }
     
     private var queue: dispatch_queue_t {
-        if respondsToSelector("maskView") { // #available (iOS 8.0, *)
+        if respondsToSelector(Selector("maskView")) { // #available (iOS 8.0, *)
             return dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0)
         } else {
             return dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0)
@@ -253,7 +253,7 @@ public class DynamicBlurView: UIView {
 
         UIGraphicsBeginImageContextWithOptions(bounds.size, true, 0)
         let context = UIGraphicsGetCurrentContext()
-        CGContextTranslateCTM(context, -bounds.origin.x, -bounds.origin.y)
+        CGContextTranslateCTM(context!, -bounds.origin.x, -bounds.origin.y)
         
         if NSThread.currentThread().isMainThread {
             renderInContext(context)
@@ -301,12 +301,12 @@ public extension UIImage {
         let imageRef = CGImage
         var boxSize = UInt32(radius * scale * ratio)
         if boxSize % 2 == 0 {
-            boxSize++
+            boxSize += 1
         }
         
-        let height = CGImageGetHeight(imageRef)
-        let width = CGImageGetWidth(imageRef)
-        let rowBytes = CGImageGetBytesPerRow(imageRef)
+        let height = CGImageGetHeight(imageRef!)
+        let width = CGImageGetWidth(imageRef!)
+        let rowBytes = CGImageGetBytesPerRow(imageRef!)
         let bytes = rowBytes * height
         
         let inData = malloc(bytes)
@@ -319,8 +319,8 @@ public extension UIImage {
         let tempSize = vImageBoxConvolve_ARGB8888(&inBuffer, &outBuffer, nil, 0, 0, boxSize, boxSize, nil, tempFlags)
         let tempBuffer = malloc(tempSize)
         
-        let provider = CGImageGetDataProvider(imageRef)
-        let copy = CGDataProviderCopyData(provider)
+        let provider = CGImageGetDataProvider(imageRef!)
+        let copy = CGDataProviderCopyData(provider!)
         let source = CFDataGetBytePtr(copy)
         memcpy(inBuffer.data, source, bytes)
         
@@ -334,9 +334,9 @@ public extension UIImage {
         }
         
         
-        let colorSpace = CGImageGetColorSpace(imageRef)
-        let bitmapInfo = CGImageGetBitmapInfo(imageRef)
-        let bitmapContext = CGBitmapContextCreate(inBuffer.data, width, height, 8, rowBytes, colorSpace, bitmapInfo.rawValue)
+        let colorSpace = CGImageGetColorSpace(imageRef!)
+        let bitmapInfo = CGImageGetBitmapInfo(imageRef!)
+        let bitmapContext = CGBitmapContextCreate(inBuffer.data, width, height, 8, rowBytes, colorSpace!, bitmapInfo.rawValue)
         defer {
             free(outBuffer.data)
             free(tempBuffer)
@@ -344,12 +344,12 @@ public extension UIImage {
         }
         
         if let color = blendColor {
-            CGContextSetFillColorWithColor(bitmapContext, color.CGColor)
-            CGContextSetBlendMode(bitmapContext, CGBlendMode.PlusLighter)
-            CGContextFillRect(bitmapContext, CGRect(x: 0, y: 0, width: width, height: height))
+            CGContextSetFillColorWithColor(bitmapContext!, color.CGColor)
+            CGContextSetBlendMode(bitmapContext!, CGBlendMode.PlusLighter)
+            CGContextFillRect(bitmapContext!, CGRect(x: 0, y: 0, width: width, height: height))
         }
         
-        if let bitmap = CGBitmapContextCreateImage(bitmapContext) {
+        if let bitmap = CGBitmapContextCreateImage(bitmapContext!) {
             return UIImage(CGImage: bitmap, scale: scale, orientation: imageOrientation)
         }
         
